@@ -45,7 +45,6 @@ export const verify = async (request: FastifyRequest, reply: FastifyReply) => {
     return sendError(reply, { message: err.message })
   }
 }
-
 export const login = async (
   request: FastifyRequest,
   reply: FastifyReply
@@ -54,16 +53,34 @@ export const login = async (
     if (!request.body) throw new AppError('Request body required', 400)
 
     const { email, password } = request.body as {
-      email: string,
-      password:string
+      email: string
+      password: string
     }
+
     const user = await authService.loginUser(email, password)
+    if (!user.isVerified) {
+      const otp = await createOTP(user._id ?? user.id, 'EMAIL_VERIFICATION')
+      sendOTPEmail(
+        (reply.server as FastifyInstance),
+        user.email,
+        otp,
+        'EMAIL_VERIFICATION',
+        2
+      )
+      throw new AppError(
+        'Account not verified. We sent you a new verification code.',
+        408
+      )
+    }
 
     const accessToken = await reply.jwtSign({ id: user._id }, { expiresIn: '15m' })
     const refreshToken = await reply.jwtSign({ id: user._id }, { expiresIn: '7d' })
     await authService.saveRefreshToken(user._id, refreshToken)
 
-    return sendSuccess(reply, { data: { accessToken, refreshToken }, message: 'Logged in' })
+    return sendSuccess(reply, {
+      data: { accessToken, refreshToken },
+      message: 'Logged in',
+    })
   } catch (err: any) {
     console.log(err)
     return sendError(reply, { message: err.message, statusCode: err.statusCode })
@@ -112,6 +129,7 @@ export const resetPassword = async (
   request: FastifyRequest<{ Body: { email: string; code: string; password: string } }>,
   reply: FastifyReply
 ) => {
+
   try {
     const { email, code, password } = request.body
     if (!email || !code || !password) throw new AppError('Email, code and password are required', 400)
