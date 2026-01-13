@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import * as authController from './auth.controller.js'
+import { authenticateUser } from '../../middleware/auth.middleware.js'
 
 
 type RefreshBody = { refreshToken: string }
@@ -125,21 +126,11 @@ export default async function authRoutes(app: FastifyInstance) {
       await authController.resetPassword(request, reply)
     }
   )
-  app.post<{ Body: RefreshBody }>(
+  app.get(
     '/logout',
     {
-      schema: {
-        body: {
-          type: 'object',
-          required: ['refreshToken'],
-          properties: {
-            refreshToken: { type: 'string' },
-          },
-        },
-      },
+      preHandler: authenticateUser
     },
-    async (request, reply) => {
-      await authController.logout(request, reply)
-    }
+    authController.logout
   )
 }

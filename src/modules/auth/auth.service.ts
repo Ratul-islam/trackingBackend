@@ -73,8 +73,8 @@ export const verifyRefreshToken = async (token: string) => {
   if (!user) throw new AppError('Invalid refresh token', 401)
   return user
 }
-export async function revokeRefreshToken(refreshToken: string): Promise<boolean> {
-  const user = await getUserBy({refreshToken})
+export async function revokeRefreshToken(userId: string): Promise<boolean> {
+  const user = await getUserBy({id:userId})
   if (!user) return false
 
   user.refreshToken = undefined

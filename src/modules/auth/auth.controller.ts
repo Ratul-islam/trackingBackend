@@ -73,8 +73,8 @@ export const login = async (
       )
     }
 
-    const accessToken = await reply.jwtSign({ id: user._id }, { expiresIn: '15m' })
-    const refreshToken = await reply.jwtSign({ id: user._id }, { expiresIn: '7d' })
+    const accessToken = await reply.jwtSign({ id: user._id, type: 'user' }, { expiresIn: '10m' })
+    const refreshToken = await reply.jwtSign({ id: user._id,type: 'user' }, { expiresIn: '7d' })
     await authService.saveRefreshToken(user._id, refreshToken)
 
     return sendSuccess(reply, {
@@ -100,7 +100,7 @@ export const refreshToken = async (
     if (!refreshToken) throw new AppError('Refresh token required', 400)
 
     const user = await authService.verifyRefreshToken(refreshToken)
-    const newAccessToken = await reply.jwtSign({ id: user._id }, { expiresIn: '15m' })
+    const newAccessToken = await reply.jwtSign({ id: user._id, type:"user" }, { expiresIn: '15m' })
 
     return sendSuccess(reply, { data: { accessToken: newAccessToken }, message: 'Access token refreshed' })
   } catch (err: any) {
@@ -141,16 +141,14 @@ export const resetPassword = async (
   }
 }
 
-export const logout = async (
-  request: FastifyRequest<{ Body: RefreshBody }>,
-  reply: FastifyReply
-) => {
-  try {
-    const token = request.body?.refreshToken
-    if (!token) throw new AppError('Refresh token required', 400)
 
-    const revoked = await authService.revokeRefreshToken(token)
-    if (!revoked) {
+export async function logout(req: FastifyRequest, reply: FastifyReply) {
+  const userId = (req as any).user.id
+
+
+  try{
+    const revoked = await authService.revokeRefreshToken(userId)
+  if (!revoked) {
       return sendSuccess(reply, { message: 'Logged out' })
     }
 

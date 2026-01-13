@@ -3,6 +3,8 @@ import AutoLoad from '@fastify/autoload'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { connectDB } from './modules/config/db.js'
+import fastifyWebsocket from '@fastify/websocket'
+import alertSocketRoutes from './modules/alerts/alerts.route.js'
 
 
 
@@ -19,6 +21,7 @@ export async function buildApp() {
   await app.register(AutoLoad, {
     dir: path.join(__dirname, 'plugins'),
   })
+  await app.register(fastifyWebsocket)
 
   await app.register(AutoLoad, {
     dir: path.join(__dirname, 'modules'),
@@ -26,9 +29,14 @@ export async function buildApp() {
     options: { prefix: '/api/v1' },
   })
 
+  app.register(alertSocketRoutes, { prefix: '/api/v1/alerts' })
+
+
   app.ready(() => {
     console.log(app.printRoutes())
   })
 
+
+  
   return app
 }
