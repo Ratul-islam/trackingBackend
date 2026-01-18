@@ -7,6 +7,7 @@ import {
 import { authenticateUser } from '../../middleware/auth.middleware.js'
 import { getRuleController, upsertRuleController } from '../trackerRule/trackerRule.controller.js'
 import { upsertTrackerRuleSchema } from '../trackerRule/trackerRule.Schema.js'
+import { UpsertTrackerRulePayload } from '../trackerRule/trackerRule.services.js'
 
 export default async function appRoutes(app: FastifyInstance) {
   app.get('/devices', { preHandler: authenticateUser }, async (req, reply) => {
@@ -21,8 +22,7 @@ export default async function appRoutes(app: FastifyInstance) {
     }
   )
 
-
-  app.post(
+  app.post<{ Params: {deviceId: string}; Body: UpsertTrackerRulePayload }>(
     '/devices/:deviceId/rule',
     { preHandler: authenticateUser, schema: upsertTrackerRuleSchema },
     upsertRuleController

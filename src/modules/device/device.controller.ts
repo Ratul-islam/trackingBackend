@@ -4,6 +4,7 @@ import {
   pairDeviceService,
   authenticateDeviceService,
   handleLocationUpdateService,
+  unpairDeviceService,
 } from './device.service.js'
 import { Types } from 'mongoose'
 import { AppError } from '../../utils/AppError.js'
@@ -16,33 +17,47 @@ export async function pairDeviceController(req: FastifyRequest, reply: FastifyRe
     name:string
   }
   const userId = (req as any).user.id;
-  console.log("sjjfhsjdfjhdjfgj" +userId)
-  if (!deviceId || !deviceSecret || !userId ||name) {
-    throw new AppError('Missing required fields', 400);
-  }
-
   try {
     const result = await pairDeviceService(deviceId, deviceSecret, userId, name)
-    return reply.code(201).send({ message: 'Device paired successfully', device: result })
+    return sendSuccess(reply, { message: 'Device paired successfully', data: result, statusCode:201 })
   } catch (err: any) {
-    return reply.code(400).send({ message: err.message })
+    return sendError(reply,{ message: err.message, statusCode:400})
   }
+}
+
+
+
+
+export async function unpairDeviceController(
+  req: FastifyRequest<{Params:{deviceId:string}}>,
+  reply: FastifyReply
+) {
+  const { deviceId } = req.params;
+  const userId = (req as any).user?.id;
+
+  if (!userId) return sendError(reply, {statusCode:401, message:"unauthoried"});
+
+  const result = await unpairDeviceService({ userId: String(userId), deviceId });
+  return sendSuccess(reply, {statusCode:result.statusCode, data:result.body})
 }
 
 export async function deviceAuthController(req: FastifyRequest, reply: FastifyReply) {
   const { deviceId, deviceSecret } = req.body as any
+  
   try {
+    
     const token = await authenticateDeviceService(deviceId, deviceSecret, req.server)
-    return sendSuccess(reply , { data: {accessToken: token}, message: 'success', statusCode:200 })
+    return reply.code(200).send(token);
   } catch (err: any) {
     return reply.code(400).send({ message: err.message })
   }
 }
 
 export async function locationController(req: FastifyRequest, reply: FastifyReply) {
-  const { deviceId } = (req as any).device
-  const { lat, lng, speed, battery } = req.body as any
 
-  await handleLocationUpdateService(deviceId, { lat, lng })
+  const { lat, lng, token} = req.body as any
+    const payload = (req.server as any).jwt.verify(token)
+
+  await handleLocationUpdateService(payload.deviceId, { lat, lng })
   return reply.code(204).send()
 }

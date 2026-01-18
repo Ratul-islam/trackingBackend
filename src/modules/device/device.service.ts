@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt'
 import { DeviceModel } from './device.model.js'
-import { Types } from 'mongoose'
-import { evaluateTrackerRule } from '../../utils/ruleEngine.js'
+import mongoose, { Types } from 'mongoose'
+import { TrackerRuleModel } from '../trackerRule/trackerRule.model.js'
 
 type DeviceState = {
   lastSeenAt?: number
@@ -11,6 +11,17 @@ type DeviceState = {
 
 const deviceState = new Map<string, DeviceState>()
 const PERSIST_INTERVAL = 30_000
+
+
+export async function getAllDevices(userId:Types.ObjectId) {
+  const device = await DeviceModel.find({ownerUserId:userId}).select('name deviceId createdAt lastLocation lastSeenAt')
+  return device;;
+}
+
+export async function getDeviceDetails(deviceId:string, ownerUserId:Types.ObjectId) {
+  const device = await DeviceModel.findOne({deviceId, ownerUserId}).select('name, deviceId ownerUserId createdAt lastLocation lastSeenAt')
+  return device;;
+}
 
 export async function pairDeviceService(
   deviceId: string,
@@ -87,5 +98,38 @@ export async function handleLocationUpdateService(
 
   deviceState.set(deviceId, state)
 
-  await evaluateTrackerRule(deviceId, data)
+}
+
+export async function unpairDeviceService({ userId, deviceId }: {userId:string, deviceId:string}) {
+  if (!Types.ObjectId.isValid(userId)) {
+    return { statusCode: 400, body: { message: "Invalid user id" } };
+  }
+
+  const userObjectId = new Types.ObjectId(userId);
+
+  // 1️⃣ Delete device ONLY if owned by user
+  const device = await DeviceModel.findOneAndDelete({
+    deviceId,
+    ownerUserId: userObjectId,
+  }).lean();
+
+  if (!device) {
+    return {
+      statusCode: 404,
+      body: { message: "Device not found or not owned by you" },
+    };
+  }
+
+  await TrackerRuleModel.deleteOne({
+    deviceId,
+    userId: userObjectId,
+  });
+
+  return {
+    statusCode: 200,
+    body: {
+      message: "Device removed successfully",
+      deviceId,
+    },
+  };
 }

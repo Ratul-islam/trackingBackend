@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { AppError } from '../utils/AppError.js'
+import { sendError } from '../utils/responses.js'
 
 export async function authenticateUser(req: FastifyRequest, reply: FastifyReply) {
   try {
@@ -20,6 +21,6 @@ export async function authenticateUser(req: FastifyRequest, reply: FastifyReply)
     if (!(err instanceof AppError)) {
       err = new AppError(err.message || 'Unauthorized', err.statusCode || 403)
     }
-    return reply.code(err.statusCode).send({ message: err.message })
+    return sendError(reply, {statusCode: err.statusCode, message: err.message})
   }
 }

@@ -1,42 +1,46 @@
-import Fastify from 'fastify'
-import AutoLoad from '@fastify/autoload'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { connectDB } from './modules/config/db.js'
-import fastifyWebsocket from '@fastify/websocket'
-import alertSocketRoutes from './modules/alerts/alerts.route.js'
+import Fastify from "fastify";
+import AutoLoad from "@fastify/autoload";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { connectDB } from "./modules/config/db.js";
+import fastifyWebsocket from "@fastify/websocket";
+import alertSocketRoutes from "./modules/alerts/alerts.route.js";
+import fastifyFormbody from "@fastify/formbody";
+import { startTrackerRuleScheduler } from "./jobs/trackerRuleScheduler.js";
+import globalErrorHandlers from "./plugins/globalErrorHandlers.js";
 
+const isProd = process.env.NODE_ENV === "production";
 
-
-const isProd = process.env.NODE_ENV === 'production'
-
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export async function buildApp() {
-  const app = Fastify({ logger: true })
-  await connectDB()
+  const app = Fastify({ logger: true });
+
+  await connectDB();
 
   await app.register(AutoLoad, {
-    dir: path.join(__dirname, 'plugins'),
-  })
-  await app.register(fastifyWebsocket)
+    dir: path.join(__dirname, "plugins"),
+    encapsulate: false, 
+    matchFilter: (p) => (isProd ? p.endsWith(".js") : p.endsWith(".ts")),
+  });
+
+  await app.register(fastifyWebsocket);
+  await app.register(fastifyFormbody);
+
+  await startTrackerRuleScheduler();
 
   await app.register(AutoLoad, {
-    dir: path.join(__dirname, 'modules'),
-    matchFilter: (p) => isProd ? p.endsWith('.routes.js') : p.endsWith('.routes.ts'),
-    options: { prefix: '/api/v1' },
-  })
+    dir: path.join(__dirname, "modules"),
+    matchFilter: (p) => (isProd ? p.endsWith(".routes.js") : p.endsWith(".routes.ts")),
+    options: { prefix: "/api/v1" },
+  });
 
-  app.register(alertSocketRoutes, { prefix: '/api/v1/alerts' })
-
+  app.register(alertSocketRoutes, { prefix: "/api/v1/alerts" });
 
   app.ready(() => {
-    console.log(app.printRoutes())
-  })
+    console.log(app.printRoutes());
+  });
 
-
-  
-  return app
+  return app;
 }

@@ -1,27 +1,23 @@
-import { FastifyInstance } from 'fastify'
+import { FastifyInstance } from "fastify";
 import {
   pairDeviceController,
   deviceAuthController,
   locationController,
-} from './device.controller.js'
-import { authenticateDevice } from './device.auth.middleware.js'
-import { pairDeviceSchema, deviceAuthSchema, deviceLocationSchema } from './device.shcema.js'
-import { authenticateUser } from '../../middleware/auth.middleware.js'
+  unpairDeviceController,
+} from "./device.controller.js";
+import { authenticateUser } from "../../middleware/auth.middleware.js";
+import { pairDeviceSchema } from "./device.shcema.js";
 
 export default async function deviceRoutes(app: FastifyInstance) {
-  app.post('/pair-device', { preHandler: authenticateUser, schema: pairDeviceSchema}, async (req, reply) => {
-    await pairDeviceController(req, reply)
-  })
+  app.post("/pair-device", { preHandler: authenticateUser , schema: pairDeviceSchema}, pairDeviceController);
 
-  app.post('/auth', { schema: deviceAuthSchema }, async (req, reply) => {
-    await deviceAuthController(req, reply)
-  })
+  app.route<{ Params: { deviceId: string } }>({
+    method: "DELETE",
+    url: "/unpair/:deviceId",
+    preHandler: authenticateUser,
+    handler: unpairDeviceController,
+  });
 
-  app.post(
-    '/location',
-    { preHandler: authenticateDevice, schema: deviceLocationSchema },
-    async (req, reply) => {
-      await locationController(req, reply)
-    }
-  )
+  app.post("/auth", deviceAuthController);
+  app.post("/location", locationController);
 }
